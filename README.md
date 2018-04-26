@@ -1,1 +1,2 @@
 # twitter-sentiment
+Initial Commit: This is a project to scrape tweets and analyze their sentiment. My initial focus is going to be trying to see how the public reacts to the progression of NHL games, trades, and free agent signings

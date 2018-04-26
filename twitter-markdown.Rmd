@@ -1,0 +1,47 @@
+---
+title: "twitter-scraper"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(rtweet)
+require(lubridate)
+require(tidytext)
+require(tidyverse)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r old work}
+nsh2 <- search_tweets2(q = "#NSHvsCOL OR #Preds OR #StandWithUs OR  #GoAvsGo", n = 18000, include_rts = FALSE) %>%
+  select(created_at, text, place_name) %>%
+  mutate(created_at = ymd_hms(created_at),
+         time = format(as.POSIXct(created_at), "%d-%m-%Y %H:%M"))
+
+locations <- count(nsh2, place_name)
+
+nsh_words <- unnest_tokens(nsh2, "word", text) %>%
+  inner_join(get_sentiments("afinn")) %>%
+  mutate(date = date(created_at)) %>%
+  filter(date == ymd("2018-04-23"))
+
+nsh_sent <- group_by(nsh_words, time) %>% summarise(sentiment = sum(score), words = n()) %>%
+  mutate(avg_sentiment = sentiment / words,
+         date = date(time))
+
+ggplot(filter(nsh_sent), aes(x = time, y = sentiment, group = 1)) + geom_line()
+
+
+
+#Should make my own function for pulling and cleaning
+#could use geocode argument
+#Timezone is way ahead
+
+test <- mutate(nsh2, datetimes = as.POSIXct(created_at,format='%Y%m%d %H:%M'))
+x <- )               
+```
