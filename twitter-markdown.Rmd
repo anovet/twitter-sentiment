@@ -1,11 +1,12 @@
 ---
 title: "twitter-scraper"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 require(rtweet)
+require(ggthemes)
 require(lubridate)
 require(tidytext)
 require(tidyverse)
@@ -18,30 +19,41 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r old work}
-nsh2 <- search_tweets2(q = "#NSHvsCOL OR #Preds OR #StandWithUs OR  #GoAvsGo", n = 18000, include_rts = FALSE) %>%
-  select(created_at, text, place_name) %>%
-  mutate(created_at = ymd_hms(created_at),
-         time = format(as.POSIXct(created_at), "%d-%m-%Y %H:%M"))
+get_tweets <- function(q, geocode){
+  temp <- search_tweets2(q = q, n = 18000, include_rts = FALSE, geocode = lookup_coords(geocode)) 
+  temp2 <- temp %>%
+    select(created_at, text, query) %>%
+    mutate(location = geocode,
+         eastern_time = with_tz(created_at, tzone = "America/New_York"))
+  temp2$new_time <- as.POSIXct(trunc(temp2$eastern_time, "mins"))
+  return(temp2)
+}
 
-locations <- count(nsh2, place_name)
+sentimentize_tweets <- function(x){
+  temp <- unnest_tokens(x, "word", text) %>%
+    inner_join(get_sentiments("afinn")) %>%
+    group_by(new_time) %>% summarise(sentiment = sum(score))
+  return(temp)
+}
 
-nsh_words <- unnest_tokens(nsh2, "word", text) %>%
-  inner_join(get_sentiments("afinn")) %>%
-  mutate(date = date(created_at)) %>%
-  filter(date == ymd("2018-04-23"))
-
-nsh_sent <- group_by(nsh_words, time) %>% summarise(sentiment = sum(score), words = n()) %>%
-  mutate(avg_sentiment = sentiment / words,
-         date = date(time))
-
-ggplot(filter(nsh_sent), aes(x = time, y = sentiment, group = 1)) + geom_line()
+#plot_sentiment <- function(x, start, end){
+#  
+#}
 
 
+test <- get_tweets(q = "Bruins OR Leafs", geocode = "Boston")
+test2 <- sentimentize_tweets(test) %>%
+  filter(new_time >= mdy_hms("4/25/2018 19:00:00", tz = "America/New_York"),
+         new_time <= mdy_hms("4/25/2018 23:00:00", tz = "America/New_York"))
 
-#Should make my own function for pulling and cleaning
-#could use geocode argument
-#Timezone is way ahead
-
-test <- mutate(nsh2, datetimes = as.POSIXct(created_at,format='%Y%m%d %H:%M'))
-x <- )               
+ggplot(data = test2, aes(x = new_time, y = sentiment, group = 1)) + geom_line()+ geom_point() +
+  labs(main = "Twitter Sentiment of Bruins vs. Leafs", sentiment = "@AlexNovet", x = "Time (Eastern)", y = "Total Tweet Sentiment")+ 
+  theme_few()
+            
 ```
+
+Future Steps:
+
+1. Average or total sentiment?
+2. Need to clean plotting to include multiple labelled regions, vertical lines for period starts and ends, better theme, starts and ends
+3. Add comments
