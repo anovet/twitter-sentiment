@@ -20,7 +20,7 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r old work}
 get_tweets <- function(q, geocode){
-  temp <- search_tweets2(q = q, n = 18000, include_rts = FALSE, geocode = lookup_coords(geocode)) 
+  temp <- search_tweets2(q = q, n = 15000, include_rts = FALSE, geocode = lookup_coords(geocode), retryonratelimit = TRUE) 
   temp2 <- temp %>%
     select(created_at, text, query) %>%
     mutate(location = geocode,
@@ -32,34 +32,29 @@ get_tweets <- function(q, geocode){
 sentimentize_tweets <- function(x, start, end){
   temp <- unnest_tokens(x, "word", text) %>%
     inner_join(get_sentiments("afinn")) %>%
-    group_by(location, new_time) %>% summarise(sentiment = sum(score)) %>%
-      filter(new_time >= mdy_hms(start, tz = "America/New_York"),
-         new_time <= mdy_hms(end, tz = "America/New_York"))
+    mutate(time_bucket = round_date(new_time, "5 minutes")) %>%
+    group_by(location, time_bucket) %>% summarise(sentiment = sum(score), words = n()) %>%
+    mutate(avg_sentiment = sentiment/words) %>%
+    filter(time_bucket >= mdy_hms(start, tz = "America/New_York"),
+           time_bucket <= mdy_hms(end, tz = "America/New_York"))
   return(temp)
 }
 
-#plot_sentiment <- function(x, start, end){
-#  
-#}
+city1a <- get_tweets(q = "Bruins OR Leafs", geocode = "Boston")
+city1b <- sentimentize_tweets(test, start = "4/25/2018 19:00:00", end = "4/25/2018 23:00:00")
+city2a <- get_tweets(q = "Bruins OR Leafs", geocode = "Toronto")
+city2b <- sentimentize_tweets(testa, start = "4/25/2018 19:00:00", end = "4/25/2018 23:00:00")
+combined <- bind_rows(city1b, city2b)
 
-
-test <- get_tweets(q = "Bruins OR Leafs", geocode = "Boston")
-test2 <- sentimentize_tweets(test, start = "4/25/2018 19:00:00", end = "4/25/2018 23:00:00")
-testa <- get_tweets(q = "Bruins OR Leafs", geocode = "Toronto")
-testb <- sentimentize_tweets(testa, start = "4/25/2018 19:00:00", end = "4/25/2018 23:00:00")
-
-combined <- bind_rows(test2, testb)
-
-ggplot(data = combined, aes(x = new_time, y = sentiment, group = location)) + geom_line(aes(group = location, color = location)) +
+ggplot(data = combined, aes(x = time_bucket, y = avg_sentiment, group = location)) + geom_line(aes(group = location, color = location)) +
   labs(title = "Twitter Sentiment of Bruins vs. Leafs", subtitle = "Tweets containing 'Bruins' or 'Leafs'", 
-       caption = "@AlexNovet", x = "Time (Eastern)", y = "Total Tweet Sentiment")+ 
+       caption = "@AlexNovet", x = "Time (Eastern)", y = "Average Sentiment")+ 
   theme_few()
             
 ```
 
 Future Steps:
 
-1. Average or total sentiment?
-2. Need to clean plotting to include multiple labelled regions, vertical lines for period starts and ends, better theme, starts and ends
+2. Need to clean plotting to include vertical lines for period starts and ends, better theme
 3. Add comments
 4. Can I limit time of tweets?
