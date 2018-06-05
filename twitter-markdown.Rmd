@@ -58,3 +58,91 @@ Future Steps:
 2. Need to clean plotting to include vertical lines for period starts and ends, better theme
 3. Add comments
 4. Can I limit time of tweets?
+
+
+
+Search for "scorer" in the api
+
+https://statsapi.web.nhl.com/api/v1/game/2017030317/feed/live?site=en_nhl
+
+TIme is in UTC
+
+How to get game ID? The first 4 digits identify the season of the game (ie. 2017 for the 2017-2018 season). The next 2 digits give the type of game, where 01 = preseason, 02 = regular season, 03 = playoffs, 04 = all-star. The final 4 digits identify the specific game number. For regular season and preseason games, this ranges from 0001 to the number of games played. (1271 for seasons with 31 teams (2017 and onwards) and 1230 for seasons with 30 teams). For playoff games, the 2nd digit of the specific number gives the round of the playoffs, the 3rd digit specifies the matchup, and the 4th digit specifies the game (out of 7).
+
+
+```{r wsh tbl}
+city1 <- get_tweets(q = "#ALLCAPS OR #GoBolts", geocode = "Tampa Bay") %>%
+  sentimentize_tweets(start = "5/25/2018 12:00:00", end = "5/26/2018 1:00:00")
+city2 <- get_tweets(q = "#ALLCAPS OR #GoBolts", geocode = "Washington, D.C.") %>%
+  sentimentize_tweets(start = "5/25/2018 12:00:00", end = "5/26/2018 1:00:00")
+combined <- bind_rows(city1, city2)
+
+ggplot(data = combined, aes(x = time_bucket, y = avg_sentiment, group = location)) + geom_line(aes(group = location, color = location)) +
+  labs(title = "Twitter Sentiment of Capitals vs. Lightning, Game 7", subtitle = "Tweets containing '#ALLCAPS' or '#GoBolts'", 
+       caption = "@AlexNovet", x = "Time (Eastern)", y = "Average Sentiment")+ 
+  theme_few()
+
+```
+
+
+```{r add goals in wsh vgk}
+#Get tweets
+city1 <- get_tweets(q = "#StanleyCup OR #ALLCAPS OR #CapsKnights OR #VegasBorn", geocode = "Las Vegas") %>%
+  sentimentize_tweets(start = "5/28/2018 18:00:00", end = "5/28/2018 23:45:00")
+city2 <- get_tweets(q = "#StanleyCup OR #ALLCAPS OR #CapsKnights OR #VegasBorn", geocode = "Washington, D.C.") %>%
+  sentimentize_tweets(start = "5/28/2018 18:00:00", end = "5/28/2018 23:45:00")
+combined <- bind_rows(city1, city2)
+
+#Mark goals
+vgk <- c(ymd_hms("2018-05-29 00:39:12"), ymd_hms("2018-05-29 01:05:08"), ymd_hms("2018-05-29 01:33:48"), ymd_hms("2018-05-29 02:32:15"), ymd_hms("2018-05-29 02:51:23"), ymd_hms("2018-05-29 03:05:58")) %>% with_tz(., tzone = "America/New_York") %>%
+  data.frame(goal_times = ., team = "Las Vegas")
+wsh <- c(ymd_hms("2018-05-29 00:57:32"), ymd_hms("2018-05-29 01:00:37"), ymd_hms("2018-05-29 01:44:05"), ymd_hms("2018-05-29 02:29:28")) %>%
+  with_tz(., tzone = "America/New_York") %>%
+  data.frame(goal_times = ., team = "Washington, D.C.")
+goals <- rbind(vgk, wsh)
+  
+  
+#Plot
+ggplot(data = combined2, aes(x = time_bucket, y = avg_sentiment, group = location)) + 
+  geom_line(aes(group = location, color = location), size = 1.5) +
+  labs(title = "Twitter Sentiment of Capitals vs. Knights, Game 1", 
+       subtitle = "Tweets containing #StanleyCup OR #ALLCAPS OR #CapsKnights OR #VegasBorn", 
+       caption = "@AlexNovet", x = "Time (Eastern)", y = "Average Sentiment") +
+  geom_vline(data = goals, aes(xintercept = as.numeric(goal_times), colour = team), linetype = "dashed") +
+  theme_few()  
+```
+
+
+```{r game four}
+#Get tweets
+city1 <- get_tweets(q = "#StanleyCup OR #ALLCAPS OR #CapsKnights OR #VegasBorn OR Capitals OR Knights OR WSH OR VGK", geocode = "Las Vegas") %>%
+  sentimentize_tweets(start = "6/04/2018 18:00:00", end = "6/04/2018 23:45:00")
+city2 <- get_tweets(q = "#StanleyCup OR #ALLCAPS OR #CapsKnights OR #VegasBorn OR Capitals OR Knights OR WSH OR VGK", geocode = "Washington, D.C.") %>%
+  sentimentize_tweets(start = "6/04/2018 18:00:00", end = "6/04/2018 23:45:00")
+combined <- bind_rows(city1, city2)
+combined2 <- filter(combined, time_bucket >= ymd_hms("2018-06-04 20:00:00", tz = "America/New_York"),
+                    time_bucket <= ymd_hms("2018-06-04 23:05:00", tz = "America/New_York"))
+#https://statsapi.web.nhl.com/api/v1/game/2017030414/feed/live?site=en_nhl
+
+
+#Mark goals
+vgk <- c(ymd_hms("2018-06-05 02:22:14"), ymd_hms("2018-06-05 02:38:45")) %>% with_tz(., tzone = "America/New_York") %>%
+  data.frame(goal_times = ., team = "Las Vegas")
+wsh <- c(ymd_hms("2018-06-05 00:34:20"), ymd_hms("2018-06-05 00:48:02"), ymd_hms("2018-06-05 00:52:19"), ymd_hms("2018-06-05 01:43:47"), ymd_hms("2018-06-05 02:42:08"), ymd_hms("2018-06-05 02:55:58")) %>%
+  with_tz(., tzone = "America/New_York") %>%
+  data.frame(goal_times = ., team = "Washington, D.C.")
+goals <- rbind(vgk, wsh)
+
+
+#Plot
+ggplot(data = combined, aes(x = time_bucket, y = avg_sentiment, group = location)) + 
+  geom_line(aes(group = location, color = location), size = 1.5) +
+  labs(title = "Twitter Sentiment of Capitals vs. Knights, Game 4", 
+       subtitle = "Tweets containing team names or key NHL hashtags", 
+       caption = "@AlexNovet", x = "Time (Eastern), dashed lines mark goals", y = "Average Sentiment") +
+  geom_vline(data = goals, aes(xintercept = as.numeric(goal_times), colour = team), linetype = "dashed") +
+  theme_few()  
+
+```
+
+Future: Add JSON to extract goal times
